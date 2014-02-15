@@ -6,7 +6,7 @@ A clojure-objc library designed to create and manage uikit interfaces.
 
 ## Lein
 
-	[uikit "0.1.0"]
+	[uikit "0.1.1"]
 
 ## Usage
 
