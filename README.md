@@ -10,11 +10,11 @@ A clojure-objc library designed to create and manage uikit interfaces.
 
 	(:require [uikit.core :as uikit])
 
-### view vector structure
+### View vector structure
 
 	[[:classname|instance] name-tag {properties..} children?]
 
-### define a view
+### Define a view
    
 	(def view 
           [:UIView :main {:setBackgroundColor ($ ($ UIColor) :redColor)}
@@ -22,7 +22,7 @@ A clojure-objc library designed to create and manage uikit interfaces.
             [:UIButton :cancel {:setTitle:forState ["Cancel" 0]}]])
    	       
 
-### children
+### Children
 
 The children can be passed directly (like aboce) or as a a seq.
 
@@ -30,11 +30,11 @@ The children can be passed directly (like aboce) or as a a seq.
        (for [i (range 10)]
         [:UILabel (keyword (str id i)) {:setText (str "Label" i)}])]
 
-### create a uiviewcontroller
+### Create a uiviewcontroller
    
-   (uikit/controller "Title" view)
+	(uikit/controller "Title" view)
 
-### the uikit scope
+### The uikit scope
 
 For every view uikit creates a scope, that's a simple map with [tag-name -> instance]. 
 From the sample above you can get the login button from the scope:
@@ -45,7 +45,7 @@ The scope also contains a :state atom.
 
     (swap! (:state scope) assoc :custom "data")
 
-### constraints
+### Constraints
 
 uikit gives you direct access to AutoLayout. You can put a :constraints property on any view.
 To learn more about AutoLayouts and the visual format: https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/AutolayoutPG/VisualFormatLanguage/VisualFormatLanguage.html
@@ -76,7 +76,7 @@ To learn more about AutoLayouts and the visual format: https://developer.apple.c
      "C:login.top=main.centery 0.5"
      "C:login.bottom=main.bottom 1 -10" ;; login.bottom = main.bottom * 1 + (-10)
 
-### gestures
+### Gestures
    
    ;; (uikit/button 1) -> ($ ($ UIButton) :buttonWithType 1)
    [(uikit/button 1) :login   
@@ -89,7 +89,7 @@ To learn more about AutoLayouts and the visual format: https://developer.apple.c
    	      :UITapGestureRecognizer {:setNumberOfTapsRequired 3
 	      			       :handler (fn [scope] ...)}]
 
-### events
+### Events
 
 Just like :gestures, :events can be a map or a vector. 
 
@@ -97,13 +97,13 @@ Just like :gestures, :events can be a map or a vector.
       {:setTextAlignment 1
        :events {:UITextFieldTextDidChangeNotification (fn [scope] ...)}}]
 
-### navigation utils (only when your top controller is a UINavigationController)
+### Navigation utils (only when your top controller is a UINavigationController)
 
     (uikit/nav-push controller)
     (uikit/nav-pop)
     (uikit/nav-top-controller) ;; gets the current controller
 
-### alert
+### Alert
 
 	(uikit/alert "Title" "message!")
 
