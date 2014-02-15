@@ -77,6 +77,7 @@ To learn more about AutoLayouts and the visual format: https://developer.apple.c
      "C:login.top=main.centery"
      "C:login.top=main.centery 0.5"
      "C:login.bottom=main.bottom 1 -10" ;; login.bottom = main.bottom * 1 + (-10)
+     "C:login.height=nil.nil 1 30" ;; sets the height to 30
 
 #### Constraints and the scope
 
