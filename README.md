@@ -85,16 +85,16 @@ For every "V:" and "H:" the api creates more than one constraint, but the same r
 
 ### Gestures
    
-   ;; (uikit/button 1) -> ($ ($ UIButton) :buttonWithType 1)
-   [(uikit/button 1) :login   
-    {:setTitle:forState ["Login!" 0]
-     :gestures {:UITapGestureRecognizer (fn [scope] ...)}}]
+	;; (uikit/button 1) -> ($ ($ UIButton) :buttonWithType 1)
+	[(uikit/button 1) :login   
+	  {:setTitle:forState ["Login!" 0]
+	   :gestures {:UITapGestureRecognizer (fn [scope] ...)}}]
 
-   ;; :gestures can take a map or a vector if you need to add the same gesture type multiple times.
-   :gestures [:UITapGestureRecognizer (fn [scope] ...)
-   	      ;; they also support a map for custom properties
-   	      :UITapGestureRecognizer {:setNumberOfTapsRequired 3
-	      			       :handler (fn [scope] ...)}]
+	;; :gestures can take a map or a vector if you need to add the same gesture type multiple times.
+	:gestures [:UITapGestureRecognizer (fn [scope] ...)
+	           ;; they also support a map for custom properties
+	           :UITapGestureRecognizer {:setNumberOfTapsRequired 3
+	                                    :handler (fn [scope] ...)}]
 
 ### Events
 
