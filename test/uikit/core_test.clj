@@ -23,7 +23,10 @@
        ["button-top" "button" 3 0 "main" 10 0.5 0.0]
 
        "C:button.top=main.centery 0.5 10"
-       ["button-top" "button" 3 0 "main" 10 0.5 10]))
+       ["button-top" "button" 3 0 "main" 10 0.5 10]
+
+       "C:button.top=nil.nil 1 30"
+       ["button-top" "button" 3 0 "nil" 0 1 30]))
 
 (deftest test-native-constraints
   (are [a] (= a (parse-constraint a))

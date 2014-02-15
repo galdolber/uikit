@@ -29,7 +29,7 @@
      :postNotificationName (name n)
      :object target))
 
-(def constraint-regex #"C:(\w*)\.(\w*)(=|<=|>=)(\w*)\.(\w*) ?(-?\w*.\w*)? ?(-?\w*.\w*)?")
+(def constraint-regex #"C:(\w*)\.(\w*)(=|<=|>=)(\w*)\.(\w*) ?(-?\w*\.?\w*) ?(-?\w*\.?\w*)")
 
 (def layout-constraints
   {:<=      -1
@@ -61,8 +61,8 @@
     c
     (if-let [[f1 p1 e f2 p2 m c] (next (re-find constraint-regex c))]
       [(str f1 "-" p1) f1 (resolve-constraint p1) (resolve-constraint e) f2
-       (resolve-constraint p2) (if m (read-string m) 1.0)
-       (if c (read-string c) 0.0)]
+       (resolve-constraint p2) (if-not (empty? m) (read-string m) 1.0)
+       (if-not (empty? c) (read-string c) 0.0)]
       (throw (Exception. (str "Invalid custom constraint: '" c "'. 
 Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|<=|>=]{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|<=|>=] multiplier? offset?"))))))
 
