@@ -2,6 +2,8 @@
 
 A clojure-objc library designed to create and manage uikit interfaces.
 
+[More docs](https://rawgithub.com/galdolber/uikit/master/docs/uberdoc.html)
+
 ## Lein
 
 	[uikit "0.1.0"]
@@ -106,10 +108,6 @@ Just like :gestures, :events can be a map or a vector.
 ### Alert
 
 	(uikit/alert "Title" "message!")
-	
-### More docs
-
-	https://rawgithub.com/galdolber/uikit/master/docs/uberdoc.html
 
 ## License
 
