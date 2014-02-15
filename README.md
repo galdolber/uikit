@@ -26,7 +26,7 @@ A clojure-objc library designed to create and manage uikit interfaces.
 
 ### Children
 
-The children can be passed directly (like aboce) or as a a seq.
+The children can be passed directly (like above) or as a a seq.
 
     [:UIView :main {:setBackgroundColor ($ ($ UIColor) :redColor)}
        (for [i (range 10)]
