@@ -38,8 +38,8 @@ The children can be passed directly (like above) or as a a seq.
 
 ### The uikit scope
 
-For every view uikit creates a scope, that's a simple map with [tag-name -> instance]. 
-From the sample above you can get the login button from the scope:
+For every view, uikit creates a scope, that is a simple map with all [tag-name -> instance]. 
+From the example above you can get the login button from the scope with:
 
      (:login scope)
 
@@ -77,6 +77,11 @@ To learn more about AutoLayouts and the visual format: https://developer.apple.c
      "C:login.top=main.centery"
      "C:login.top=main.centery 0.5"
      "C:login.bottom=main.bottom 1 -10" ;; login.bottom = main.bottom * 1 + (-10)
+
+#### Constraints and the scope
+
+All constraints are automatically added to the scope. Custom constraints are named with the first item and first property. For example: "C:login.top=main.centery" will be named :login-top on the scope. 
+For every "V:" and "H:" the api creates more than one constraint, but the same rule applies. If you use the visual format you can check your scope for the generated constraints.
 
 ### Gestures
    
