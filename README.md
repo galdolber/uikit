@@ -106,6 +106,10 @@ Just like :gestures, :events can be a map or a vector.
 ### Alert
 
 	(uikit/alert "Title" "message!")
+	
+### More docs
+
+	https://rawgithub.com/galdolber/uikit/master/docs/uberdoc.html
 
 ## License
 
