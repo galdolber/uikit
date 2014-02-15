@@ -4,22 +4,22 @@ A clojure-objc library designed to create and manage uikit interfaces.
 
 ## Lein
 
-   [uikit "0.1.0"]
+	[uikit "0.1.0"]
 
 ## Usage
 
-   (:require [uikit.core :as uikit])
-   
+	(:require [uikit.core :as uikit])
+
 ### view vector structure
-   
-   [[:classname|instance] name-tag {properties..} children?]
+
+	[[:classname|instance] name-tag {properties..} children?]
 
 ### define a view
    
-   (def view 
-     [:UIView :main {:setBackgroundColor ($ ($ UIColor) :redColor)}
-       [:UIButton :login {:setTitle:forState ["Login" 0]}]
-       [:UIButton :cancel {:setTitle:forState ["Cancel" 0]}]])
+	(def view 
+          [:UIView :main {:setBackgroundColor ($ ($ UIColor) :redColor)}
+            [:UIButton :login {:setTitle:forState ["Login" 0]}]
+            [:UIButton :cancel {:setTitle:forState ["Cancel" 0]}]])
    	       
 
 ### children
@@ -105,7 +105,7 @@ Just like :gestures, :events can be a map or a vector.
 
 ### alert
 
-   (uikit/alert "Title" "message!")
+	(uikit/alert "Title" "message!")
 
 ## License
 
