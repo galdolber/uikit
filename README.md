@@ -70,7 +70,7 @@ To learn more about AutoLayouts and the visual format: https://developer.apple.c
 
 #### Format
 
-	C:{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|<=|>=]{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|<=|>=] multiplier? offset?
+C:{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|<=|>=]{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline] multiplier? offset?
 
 #### Examples
 
