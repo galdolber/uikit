@@ -3028,9 +3028,15 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>uikit -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name">uikit</h1><h2 class="project-version">0.1.0</h2><br /><p>UIKit library for clojure-objc</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">galdolber/clojure-objc</td><td class="dotted"><hr /></td><td class="dep-version">1.6.0-beta1-1</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#uikit.core">uikit.core</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#uikit.core" name="uikit.core"><h1 class="project-name">uikit.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
+</script><title>uikit -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name">uikit</h1><h2 class="project-version">0.1.2</h2><br /><p>UIKit library for clojure-objc</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">galdolber/clojure-objc</td><td class="dotted"><hr /></td><td class="dep-version">1.6.0</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#uikit.core">uikit.core</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#uikit.core" name="uikit.core"><h1 class="project-name">uikit.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(ns uikit.core)</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn- nsdictionary [map]
+  (when map
+    (let [d ($ ($ NSMutableDictionary) :new)]
+      (doseq [[k v] map]
+        ($ d :setObject v :forKey (name k)))
+      d)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(def default-center ($ ($ NSNotificationCenter) :defaultCenter))</pre></td></tr><tr><td class="docs"><p>Adds an observer for a notification.</p>
 
 <p>  The handler is retained. </p>
@@ -3049,11 +3055,14 @@ net.brehaut.ClojureTools = (function (SH) {
   ($ default-center :removeObserver handler)
   ($ handler :autorelease))</pre></td></tr><tr><td class="docs"><p>Post a notification to an object</p>
 </td><td class="codes"><pre class="brush: clojure">(defn post-notification
-  [target n]
-  ($ default-center
-     :postNotificationName (name n)
-     :object target))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(def constraint-regex #&quot;C:(\w*)\.(\w*)(=|&lt;=|&gt;=)(\w*)\.(\w*) ?(-?\w*.\w*)? ?(-?\w*.\w*)?&quot;)</pre></td></tr><tr><td class="docs">
+  ([target n] (post-notification target n nil))
+  ([target n info]
+     ($ default-center
+        :postNotificationName (name n)
+        :object target
+        :userInfo (nsdictionary info))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def constraint-regex #&quot;C:(\w*)\.(\w*)(=|&lt;=|&gt;=)(\w*)\.(\w*) ?(-?\w*\.?\w*) ?(-?\w*\.?\w*)&quot;)</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn map-invert [m] (reduce (fn [m [k v]] (assoc m v k)) {} m))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(def layout-constraints
   {:&lt;=      -1
    :=        0
@@ -3070,6 +3079,7 @@ net.brehaut.ClojureTools = (function (SH) {
    :centery  10
    :baseline 11
    :nil 0})</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def rlayout-constraints (map-invert layout-constraints))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn not-found [c]
   (throw (Exception. (str &quot;Constraint not found &quot; c))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn resolve-constraint [c]
@@ -3081,9 +3091,9 @@ net.brehaut.ClojureTools = (function (SH) {
     c
     (if-let [[f1 p1 e f2 p2 m c] (next (re-find constraint-regex c))]
       [(str f1 &quot;-&quot; p1) f1 (resolve-constraint p1) (resolve-constraint e) f2
-       (resolve-constraint p2) (if m (read-string m) 1.0)
-       (if c (read-string c) 0.0)]
-      (throw (Exception. (str &quot;Invalid custom constraint: '&quot; c &quot;'. 
+       (resolve-constraint p2) (if-not (empty? m) (read-string m) 1.0)
+       (if-not (empty? c) (read-string c) 0.0)]
+      (throw (Exception. (str &quot;Invalid custom constraint: '&quot; c &quot;'.
 Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|&lt;=|&gt;=]{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|&lt;=|&gt;=] multiplier? offset?&quot;))))))</pre></td></tr><tr><td class="docs"><p>Creates NSLayoutConstraints from the constraints definitions</p>
 </td><td class="codes"><pre class="brush: clojure">(defn autolayout
   [ui views c]
@@ -3092,7 +3102,7 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                :options 0 :metrics 0
                :views views)]
       ($ ui :addConstraints c)
-      c) ;; TODO make names and add to scope
+      c)
     (let [[_ a b c d e f g] c]
       (let [c ($ ($ NSLayoutConstraint)
                  :constraintWithItem ($ views :objectForKey a)
@@ -3103,38 +3113,49 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                  :multiplier f
                  :constant g)]
         ($ ui :addConstraint c)
-        c))))</pre></td></tr><tr><td class="docs"><p>Sets a property using objc selectors. </p>
+        c))))</pre></td></tr><tr><td class="docs"><p>Sets a property using objc selectors.</p>
 
 <p>  Accepts multiple args selectors: :setTitle:forState ["Hello" 0]</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-property
-  [scope view [k v]]
-  (when-not (#{:constraints :events :gestures} k)
-    (if (and (vector? v) (or (empty? v) (re-find #&quot;:&quot; (name k))))
-      (apply (partial (sel (name k)) view) v)
-      ((sel (name k)) view v))))</pre></td></tr><tr><td class="docs"><p>Creates a scope for a view</p>
+  [view [k v]]
+  (let [[view k]
+        (if-not (vector? k) [view k]
+                (loop [view view [f &amp; other] k]
+                  (if-not other
+                    [view f]
+                    (recur ((sel (name f)) view) other))))]
+    (when-not (#{:parent-constraints :constraints :events :gestures} k)
+      (if (and (vector? v) (or (empty? v) (re-find #&quot;:&quot; (name k))))
+        (apply (partial (sel (name k)) view) v)
+        ((sel (name k)) view v)))))</pre></td></tr><tr><td class="docs"><p>Creates a scope for a view</p>
 </td><td class="codes"><pre class="brush: clojure">(defn create-scope
   ([] (create-scope {}))
   ([m] (atom (assoc m
                :observers (atom [])
                :state (atom {})
                :retains (atom [])))))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn get-key [map val]
-  (first (keep (fn [[k v]] (when (= v val) k)) map)))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn assoc-noreplace [a k v]
   (loop [i 1]
-    (let [kk (keyword (str (name k) (if (= 1 i)  i)))]      
+    (let [kk (keyword (str (name k) (if (= 1 i)  i)))]
       (if (@a kk)
         (recur (inc i))
-        (swap! a assoc kk v)))))</pre></td></tr><tr><td class="docs"><p>Instantiates a ui from clojure data.</p>
-
-<p>  (create-ui 
-    [UIView :main 
-      {:selector value
-       :selector:other: [value1 value2]}
-      [UIButton :button {}]])</p>
+        (swap! a assoc kk v)))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn get-children [children]
+  (if (and (= 1 (count children))
+           (not (vector? (first children))))
+    (first children)
+    children))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn collect-constraints [[type tag props &amp; children]]
+  (into (:constraints props)
+        (loop [c [] [f &amp; o] (get-children children)]
+          (if f
+            (recur (if-let [p (:parent-constraints (nth f 2))]
+                     (conj c p)
+                     c) o)
+            (flatten c)))))</pre></td></tr><tr><td class="docs"><p>Instantiates a ui from clojure data.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn create-ui
   ([v] (create-ui (create-scope) v))
-  ([scope [clazz tag props &amp; children]]
+  ([scope [clazz tag props &amp; children :as node]]
      (let [view (if (keyword? clazz) ($ (objc-class (symbol (name clazz))) :new)
                     (do ($ clazz :retain) clazz))
            views (if-let [views (:views @scope)]
@@ -3146,27 +3167,28 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
        (swap! scope assoc tag view)
        (swap! (:retains @scope) conj view)
         (doseq [p (if (map? props) props (partition 2 props))]
-          (set-property scope view p))
-        (doseq [c (if (and (= 1 (count children))
-                           (not (vector? (first children))))
-                    (first children)
-                    children)]
+          (set-property view p))
+        (doseq [c (get-children children)]
           (let [s (create-ui scope c)]
             ($ s :setTranslatesAutoresizingMaskIntoConstraints false)
             ($ view :addSubview s)))
-        (doseq [c (map parse-constraint (:constraints props))]
-          (if (string? c)
-            (let [l (autolayout view views c)]
-              (doseq [n (range ($ l :count))]
-                (let [i ($ l :objectAtIndex n)
-                      item1 (get-key @scope ($ i :firstItem))
-                      attr1 (get-key layout-constraints ($ i :firstAttribute))]
-                  (assoc-noreplace scope (str (name item1) &quot;-&quot; (name attr1)) i)
-                  (when-let [sec ($ i :secondItem)]
-                    (let [item2 (get-key @scope sec)
-                          attr2 (get-key layout-constraints ($ i :secondAttribute))]
-                      (assoc-noreplace scope (str (name item2) &quot;-&quot; (name attr2)) i))))))
-            (assoc-noreplace scope (first c) (autolayout view views c))))
+        (let [allc (map parse-constraint (collect-constraints node))]
+          (when-not (empty? allc)
+            (let [rscope (map-invert @scope)]
+              (doseq [c allc]
+                (if (string? c)
+                  (let [l (autolayout view views c)]
+                    (when-let [cc ($ l :count)] ;; make it safe for the jvm
+                      (doseq [n (range cc)]
+                        (let [i ($ l :objectAtIndex n)
+                              item1 (rscope ($ i :firstItem))
+                              attr1 (rlayout-constraints ($ i :firstAttribute))]
+                          (assoc-noreplace scope (str (name item1) &quot;-&quot; (name attr1)) i)
+                          (when-let [sec ($ i :secondItem)]
+                            (let [item2 (rscope sec)
+                                  attr2 (rlayout-constraints ($ i :secondAttribute))]
+                              (assoc-noreplace scope (str (name item2) &quot;-&quot; (name attr2)) i)))))))
+                  (assoc-noreplace scope (first c) (autolayout view views c)))))))
         (doseq [[k v] (let [g (:gestures props)]
                         (if (map? g) g (partition 2 g)))]
           (let [handler (if (map? v) (:handler v) v)
@@ -3178,20 +3200,21 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
             (swap! (:retains @scope) conj handler)
             (when (map? v)
               (doseq [p (dissoc v :handler)]
-                (set-property scope g p)))
+                (set-property g p)))
             ($ view :addGestureRecognizer g)))
         (doseq [[k v] (let [g (:events props)]
                         (if (map? g) g (partition 2 g)))]
-          (if (keyword? k)
-            (let [kname (name k)]
-              (let [handler #(v @scope)]
+          (let [handler #(v (assoc @scope :event %))
+                method &quot;invokeWithId:&quot;]
+            (if (keyword? k)
+              (let [kname (name k)]
                 (swap! (:observers @scope) conj handler)
-                (add-observer view handler &quot;invoke&quot; kname)))
-            (let [handler #(v @scope)]
-              ($ handler :retain)
-              (swap! (:retains @scope) conj handler)
-              ($ view :addTarget handler :action (sel &quot;invoke&quot;)
-                 :forControlEvents k))))
+                (add-observer view handler method kname))
+              (do
+                ($ handler :retain)
+                (swap! (:retains @scope) conj handler)
+                ($ view :addTarget handler :action (sel method)
+                   :forControlEvents k)))))
         view)))</pre></td></tr><tr><td class="docs"><p>Gets the key window</p>
 </td><td class="codes"><pre class="brush: clojure">(defn key-window
   []
@@ -3211,7 +3234,7 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
 </td><td class="codes"><pre class="brush: clojure">(defn dealloc
   [scope]
   (doseq [v @(:retains @scope)]
-    (post-notification v :Dealloc)
+    (post-notification v :dealloc)
     ($ v :release))
   (doseq [v @(:observers @scope)]
     (remove-observer v))
@@ -3221,19 +3244,50 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
   ([^:id self :initWith ^:id [view s]]
      (doto ($$ self :init)
        ($ :setView ($ view :retain))
-       (objc-set! :scope s)))
+       (objc-set! :scope s)
+       (#(post-notification ($ % :view) :init))))
+  ([^:id self :scope]
+     @(objc-get self :scope))
+  ([self :shouldAutorotate]
+     (:shouldAutorotate (objc-get self :scope)))
+  ([self :viewDidLoad]
+     (post-notification ($ self :view) :viewDidLoad)
+     ($$ self :viewDidLoad))
+  ([self :didReceiveMemoryWarning]
+     (post-notification ($ self :view) :didReceiveMemoryWarning)
+     ($$ self :didReceiveMemoryWarning))
+  ([self :viewDidLayoutSubviews]
+     (post-notification ($ self :view) :viewDidLayoutSubviews)
+     ($$ self :viewDidLayoutSubviews))
+  ([self :viewWillLayoutSubviews]
+     (post-notification ($ self :view) :viewWillLayoutSubviews)
+     ($$ self :viewWillLayoutSubviews))
+  ([self :viewDidAppear animated]
+     (post-notification ($ self :view) :viewDidAppear)
+     ($$ self :viewDidAppear animated))
+  ([self :viewDidDisappear animated]
+     (post-notification ($ self :view) :viewDidDisappear)
+     ($$ self :viewDidDisappear animated))
+  ([self :viewWillAppear animated]
+     (post-notification ($ self :view) :viewWillAppear)
+     ($$ self :viewWillAppear animated))
+  ([self :viewWillDisappear animated]
+     (post-notification ($ self :view) :viewWillDisappear)
+     ($$ self :viewWillDisappear animated))
   ([self :dealloc]
-     (dealloc (objc-get self :scope)) 
+     (dealloc (objc-get self :scope))
      ($ ($ self :view) :release)
      ($$ self :dealloc)))</pre></td></tr><tr><td class="docs"><p>Creates a uikit controller with a title and a view data</p>
 </td><td class="codes"><pre class="brush: clojure">(defn controller
-  [title view]
-  (let [scope (create-scope)
-        view (create-ui scope view)]
-    (doto ($ ($ ($ UIKitController) :alloc) :initWith [view scope])
-      ($ :setTitle title)
-      ($ :setView view)
-      ($ :autorelease))))</pre></td></tr><tr><td class="docs"><p>Pushes a controller into the top navigation controller</p>
+  ([title view] (controller title view {}))
+  ([title view init]
+     (let [scope (create-scope init)
+           view (create-ui scope view)]
+       (doto ($ ($ ($ UIKitController) :alloc)
+                :initWith [view scope])
+         ($ :setTitle title)
+         ($ :setView view)
+         ($ :autorelease)))))</pre></td></tr><tr><td class="docs"><p>Pushes a controller into the top navigation controller</p>
 </td><td class="codes"><pre class="brush: clojure">(defn nav-push
   ([controller] (nav-push controller false))
   ([controller animated] ($ (top-controller) :pushViewController controller :animated animated)))</pre></td></tr><tr><td class="docs"><p>Pops a controller from the current navigation controller</p>
@@ -3258,5 +3312,22 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
          ($ :autorelease)
          ($ :show))))</pre></td></tr><tr><td class="docs"><p>Creates a UIButton with a type</p>
 </td><td class="codes"><pre class="brush: clojure">(defn button
-  [type] ($ ($ UIButton) :buttonWithType type))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/fogus/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+  [type] ($ ($ UIButton) :buttonWithType type))</pre></td></tr><tr><td class="docs"><p>Mutates ui</p>
+
+<p>  (ui! scope
+    {:field:setMethod val1
+     :other:setSomethingElse val2})</p>
+</td><td class="codes"><pre class="brush: clojure">(defmacro ui!
+  [scope pairs]
+  (let [code
+        (for [[k v] pairs]
+          (let [[_ field method] (re-matches #&quot;(\w*):(.*)&quot; (name k))]
+            (when (and field method)
+              (let [kfield (keyword field)
+                    view `(~scope ~kfield)
+                    kmethod (keyword method)]
+                (if (= :nop v)
+                  `((sel ~method) ~view)
+                  `(set-property ~view [~kmethod ~v]))))))]
+    `(clojure.lang.RT/dispatchInMainSync (fn [] ~@code))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/fogus/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
        SyntaxHighlighter.all()</script></body></html>

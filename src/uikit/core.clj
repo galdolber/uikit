@@ -1,10 +1,17 @@
 (ns uikit.core)
 
+(defn nsdictionary [map]
+  (when map
+    (let [d ($ ($ NSMutableDictionary) :new)]
+      (doseq [[k v] map]
+        ($ d :setObject v :forKey (name k)))
+      ($ d :autorelease))))
+
 (def default-center ($ ($ NSNotificationCenter) :defaultCenter))
 
 (defn add-observer
   "Adds an observer for a notification.
- 
+
   The handler is retained. "
   ([target handler n] (add-observer target handler "invokeWithId:" n))
   ([target handler selector n]
@@ -24,12 +31,20 @@
 
 (defn post-notification
   "Post a notification to an object"
-  [target n]
-  ($ default-center
-     :postNotificationName (name n)
-     :object target))
+  ([target n] (post-notification target n nil))
+  ([target n info]
+     ($ default-center
+        :postNotificationName (name n)
+        :object target
+        :userInfo (nsdictionary info))))
 
 (def constraint-regex #"C:(\w*)\.(\w*)(=|<=|>=)(\w*)\.(\w*) ?(-?\w*\.?\w*) ?(-?\w*\.?\w*)")
+
+(defn map-invert [m]
+  (loop [m (transient {}) e (seq m)]
+    (if e
+      (recur (assoc! m (second e) (first e)) (next e))
+      (persistent! m))))
 
 (def layout-constraints
   {:<=      -1
@@ -48,6 +63,8 @@
    :baseline 11
    :nil 0})
 
+(def rlayout-constraints (map-invert layout-constraints))
+
 (defn not-found [c]
   (throw (Exception. (str "Constraint not found " c))))
 
@@ -63,7 +80,7 @@
       [(str f1 "-" p1) f1 (resolve-constraint p1) (resolve-constraint e) f2
        (resolve-constraint p2) (if-not (empty? m) (read-string m) 1.0)
        (if-not (empty? c) (read-string c) 0.0)]
-      (throw (Exception. (str "Invalid custom constraint: '" c "'. 
+      (throw (Exception. (str "Invalid custom constraint: '" c "'.
 Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|<=|>=]{name}.[left|right|top|bottom|leading|trailing|width|height|centerx|centery|baseline][=|<=|>=] multiplier? offset?"))))))
 
 (defn autolayout
@@ -74,7 +91,7 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                :options 0 :metrics 0
                :views views)]
       ($ ui :addConstraints c)
-      c) ;; TODO make names and add to scope
+      c)
     (let [[_ a b c d e f g] c]
       (let [c ($ ($ NSLayoutConstraint)
                  :constraintWithItem ($ views :objectForKey a)
@@ -88,43 +105,54 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
         c))))
 
 (defn set-property
-  "Sets a property using objc selectors. 
-  
+  "Sets a property using objc selectors.
+
   Accepts multiple args selectors: :setTitle:forState [\"Hello\" 0]"
-  [scope view [k v]]
-  (when-not (#{:constraints :events :gestures} k)
-    (if (and (vector? v) (or (empty? v) (re-find #":" (name k))))
-      (apply (partial (sel (name k)) view) v)
-      ((sel (name k)) view v))))
+  [view [k v]]
+  (let [[view k]
+        (if-not (vector? k) [view k]
+                (loop [view view [f & other] k]
+                  (if-not other
+                    [view f]
+                    (recur ((sel (name f)) view) other))))]
+    (when-not (#{:parent-constraints :constraints :events :gestures} k)
+      (if (and (vector? v) (or (empty? v) (re-find #":" (name k))))
+        (apply (partial (sel (name k)) view) v)
+        ((sel (name k)) view v)))))
 
 (defn create-scope
   "Creates a scope for a view"
   ([] (create-scope {}))
-  ([m] (atom (assoc m
-               :observers (atom [])
-               :state (atom {})
-               :retains (atom [])))))
-
-(defn get-key [map val]
-  (first (keep (fn [[k v]] (when (= v val) k)) map)))
+  ([s] (atom {:observers (atom [])
+              :state (atom s)
+              :retains (atom [])})))
 
 (defn assoc-noreplace [a k v]
   (loop [i 1]
-    (let [kk (keyword (str (name k) (if (= 1 i) "" i)))]      
+    (let [kk (keyword (str (name k) (if (= 1 i) "" i)))]
       (if (@a kk)
         (recur (inc i))
         (swap! a assoc kk v)))))
 
+(defn get-children [children]
+  (if (and (= 1 (count children))
+           (not (vector? (first children))))
+    (first children)
+    children))
+
+(defn collect-constraints [[type tag props & children]]
+  (into (:constraints props)
+        (loop [c [] [f & o] (get-children children)]
+          (if f
+            (recur (if-let [p (:parent-constraints (nth f 2))]
+                     (conj c p)
+                     c) o)
+            (flatten c)))))
+
 (defn create-ui
-  "Instantiates a ui from clojure data.
-  
-  (create-ui 
-    [UIView :main 
-      {:selector value
-       :selector:other: [value1 value2]}
-      [UIButton :button {}]])"
+  "Instantiates a ui from clojure data."
   ([v] (create-ui (create-scope) v))
-  ([scope [clazz tag props & children]]
+  ([scope [clazz tag props & children :as node]]
      (let [view (if (keyword? clazz) ($ (objc-class (symbol (name clazz))) :new)
                     (do ($ clazz :retain) clazz))
            views (if-let [views (:views @scope)]
@@ -135,32 +163,32 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
        ($ views :setValue view :forKey (name tag))
        (swap! scope assoc tag view)
        (swap! (:retains @scope) conj view)
-       
+
         (doseq [p (if (map? props) props (partition 2 props))]
-          (set-property scope view p))
-        
-        (doseq [c (if (and (= 1 (count children))
-                           (not (vector? (first children))))
-                    (first children)
-                    children)]
+          (set-property view p))
+
+        (doseq [c (get-children children)]
           (let [s (create-ui scope c)]
             ($ s :setTranslatesAutoresizingMaskIntoConstraints false)
             ($ view :addSubview s)))
-        
-        (doseq [c (map parse-constraint (:constraints props))]
-          (if (string? c)
-            (let [l (autolayout view views c)]
-              (when-let [cc ($ l :count)] ;; make it safe for the jvm
-                (doseq [n (range cc)]
-                  (let [i ($ l :objectAtIndex n)
-                        item1 (get-key @scope ($ i :firstItem))
-                        attr1 (get-key layout-constraints ($ i :firstAttribute))]
-                    (assoc-noreplace scope (str (name item1) "-" (name attr1)) i)
-                    (when-let [sec ($ i :secondItem)]
-                      (let [item2 (get-key @scope sec)
-                            attr2 (get-key layout-constraints ($ i :secondAttribute))]
-                        (assoc-noreplace scope (str (name item2) "-" (name attr2)) i)))))))
-            (assoc-noreplace scope (first c) (autolayout view views c))))
+
+        (let [allc (map parse-constraint (collect-constraints node))]
+          (when-not (empty? allc)
+            (let [rscope (map-invert @scope)]
+              (doseq [c allc]
+                (if (string? c)
+                  (let [l (autolayout view views c)]
+                    (when-let [cc ($ l :count)] ;; make it safe for the jvm
+                      (doseq [n (range cc)]
+                        (let [i ($ l :objectAtIndex n)
+                              item1 (rscope ($ i :firstItem))
+                              attr1 (rlayout-constraints ($ i :firstAttribute))]
+                          (assoc-noreplace scope (str (name item1) "-" (name attr1)) i)
+                          (when-let [sec ($ i :secondItem)]
+                            (let [item2 (rscope sec)
+                                  attr2 (rlayout-constraints ($ i :secondAttribute))]
+                              (assoc-noreplace scope (str (name item2) "-" (name attr2)) i)))))))
+                  (assoc-noreplace scope (first c) (autolayout view views c)))))))
 
         (doseq [[k v] (let [g (:gestures props)]
                         (if (map? g) g (partition 2 g)))]
@@ -170,24 +198,25 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                 g ($ ($ (objc-class (name k)) :alloc)
                      :initWithTarget handler :action selector)]
             ($ handler :retain)
-            (swap! (:retains @scope) conj handler)
+            (swap! (:retains @scope) conj handler g)
             (when (map? v)
               (doseq [p (dissoc v :handler)]
-                (set-property scope g p)))
+                (set-property g p)))
             ($ view :addGestureRecognizer g)))
-        
+
         (doseq [[k v] (let [g (:events props)]
                         (if (map? g) g (partition 2 g)))]
-          (if (keyword? k)
-            (let [kname (name k)]
-              (let [handler #(v @scope)]
+          (let [handler #(v (assoc @scope :event %))
+                method "invokeWithId:"]
+            (if (keyword? k)
+              (let [kname (name k)]
                 (swap! (:observers @scope) conj handler)
-                (add-observer view handler "invoke" kname)))
-            (let [handler #(v @scope)]
-              ($ handler :retain)
-              (swap! (:retains @scope) conj handler)
-              ($ view :addTarget handler :action (sel "invoke")
-                 :forControlEvents k))))
+                (add-observer view handler method kname))
+              (do
+                ($ handler :retain)
+                (swap! (:retains @scope) conj handler)
+                ($ view :addTarget handler :action (sel method)
+                   :forControlEvents k)))))
         view)))
 
 (defn key-window
@@ -197,6 +226,8 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
       ($ :sharedApplication)
       ($ :keyWindow)))
 
+(def current-top-controller (atom nil))
+
 (defn top-controller
   "Gets the top controller"
   []
@@ -205,7 +236,7 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
 (defn top-view
   "Gets the top view"
   []
-  ($ (top-controller) :view))
+  ($ @current-top-controller :view))
 
 (defn setup-keyboard
   "Setups global observers for UIKeyboardWillShowNotification and UIKeyboardWillHideNotification"
@@ -217,7 +248,7 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
   "Deallocs everything in a uikit scope"
   [scope]
   (doseq [v @(:retains @scope)]
-    (post-notification v :Dealloc)
+    (post-notification v :dealloc)
     ($ v :release))
   (doseq [v @(:observers @scope)]
     (remove-observer v))
@@ -229,36 +260,67 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
   ([^:id self :initWith ^:id [view s]]
      (doto ($$ self :init)
        ($ :setView ($ view :retain))
-       (objc-set! :scope s)))
+       (objc-set! :scope s)
+       (#(post-notification ($ % :view) :init))))
+  ([^:id self :scope]
+     @(objc-get self :scope))
+  ([self :shouldAutorotate]
+     (:shouldAutorotate (objc-get self :scope)))
+  ([self :viewDidLoad]
+     (post-notification ($ self :view) :viewDidLoad)
+     ($$ self :viewDidLoad))
+  ([self :didReceiveMemoryWarning]
+     (post-notification ($ self :view) :didReceiveMemoryWarning)
+     ($$ self :didReceiveMemoryWarning))
+  ([self :viewDidLayoutSubviews]
+     (post-notification ($ self :view) :viewDidLayoutSubviews)
+     ($$ self :viewDidLayoutSubviews))
+  ([self :viewWillLayoutSubviews]
+     (post-notification ($ self :view) :viewWillLayoutSubviews)
+     ($$ self :viewWillLayoutSubviews))
+  ([self :viewDidAppear animated]
+     (post-notification ($ self :view) :viewDidAppear)
+     ($$ self :viewDidAppear animated))
+  ([self :viewDidDisappear animated]
+     (post-notification ($ self :view) :viewDidDisappear)
+     ($$ self :viewDidDisappear animated))
+  ([self :viewWillAppear animated]
+     (post-notification ($ self :view) :viewWillAppear)
+     ($$ self :viewWillAppear animated))
+  ([self :viewWillDisappear animated]
+     (post-notification ($ self :view) :viewWillDisappear)
+     ($$ self :viewWillDisappear animated))
   ([self :dealloc]
-     (dealloc (objc-get self :scope)) 
+     (dealloc (objc-get self :scope))
      ($ ($ self :view) :release)
      ($$ self :dealloc)))
 
 (defn controller
   "Creates a uikit controller with a title and a view data"
-  [title view]
-  (let [scope (create-scope)
-        view (create-ui scope view)]
-    (doto ($ ($ ($ UIKitController) :alloc) :initWith [view scope])
-      ($ :setTitle title)
-      ($ :setView view)
-      ($ :autorelease))))
+  ([title view] (controller title view {}))
+  ([title view init]
+     (let [scope (create-scope init)
+           view (create-ui scope view)]
+       (doto ($ ($ ($ UIKitController) :alloc)
+                :initWith [view scope])
+         ($ :setTitle title)
+         ($ :setView view)
+         ($ :autorelease)))))
 
 (defn nav-push
   "Pushes a controller into the top navigation controller"
   ([controller] (nav-push controller false))
-  ([controller animated] ($ (top-controller) :pushViewController controller :animated animated)))
+  ([controller animated] ($ @current-top-controller :pushViewController controller :animated animated)))
 
 (defn nav-pop
   "Pops a controller from the current navigation controller"
   ([] (nav-pop true))
   ([animated]
-     ($ (top-controller) :popViewControllerAnimated animated)))
+     ($ @current-top-controller :popViewControllerAnimated animated)))
 
 (defn nav-top-controller
   "Gets the top controller from the current navigation controller"
-  ([] (nav-top-controller (top-controller)))
+  ([] (nav-top-controller @current-top-controller))
   ([nav] ($ nav :visibleViewController)))
 
 (defn alert!
@@ -279,3 +341,22 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
 (defn button
   "Creates a UIButton with a type"
   [type] ($ ($ UIButton) :buttonWithType type))
+
+(defmacro ui!
+  "Mutates ui
+
+  (ui! scope
+    {:field:setMethod val1
+     :other:setSomethingElse val2})"
+  [scope pairs]
+  (let [code
+        (for [[k v] pairs]
+          (let [[_ field method] (re-matches #"(\w*):(.*)" (name k))]
+            (when (and field method)
+              (let [kfield (keyword field)
+                    view `(~scope ~kfield)
+                    kmethod (keyword method)]
+                (if (= :nop v)
+                  `((sel ~method) ~view)
+                  `(set-property ~view [~kmethod ~v]))))))]
+    `(clojure.lang.RT/dispatchInMainSync (fn [] ~@code))))

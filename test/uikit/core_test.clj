@@ -14,6 +14,19 @@
        :bla
        -33))
 
+(deftest test-collect-constraints
+  (is (= ["a" "b" "c" "d"]
+         (collect-constraints
+          [:UIView :main {:constraints ["a" "b"]}
+           [:UIView :one {:parent-constraints ["c"]}]
+           [:UIView :two {:parent-constraints ["d"]}]])))
+  (is (= ["a" "b" "d"]
+         (collect-constraints
+          [:UIView :main {:constraints ["a" "b"]}
+           (list
+            [:UIView :one {}]
+            [:UIView :two {:parent-constraints ["d"]}])]))))
+
 (deftest test-parse-constraint
   (are [s e] (= e (parse-constraint s))
        "C:button.top=main.centery"
