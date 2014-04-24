@@ -80,7 +80,7 @@
                ;; Use a vector to use the same gesture type multiple times
                :gestures [:UITapGestureRecognizer (fn [scope])
                           :UITapGestureRecognizer (fn [scope])]}]])]
-    (is (= 8 (count @(:retains @scope))))
+    (is (= 12 (count @(:retains @scope))))
     (is (= 3 (count @(:observers @scope))))
     (is (= uiview (:main @scope)))
     (is (= uitextfield (:input @scope)))

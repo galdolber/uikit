@@ -41,10 +41,7 @@
 (def constraint-regex #"C:(\w*)\.(\w*)(=|<=|>=)(\w*)\.(\w*) ?(-?\w*\.?\w*) ?(-?\w*\.?\w*)")
 
 (defn map-invert [m]
-  (loop [m (transient {}) e (seq m)]
-    (if e
-      (recur (assoc! m (second e) (first e)) (next e))
-      (persistent! m))))
+  (reduce (fn [m [k v]] (assoc m v k)) {} m))
 
 (def layout-constraints
   {:<=      -1
@@ -127,13 +124,6 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
               :state (atom s)
               :retains (atom [])})))
 
-(defn assoc-noreplace [a k v]
-  (loop [i 1]
-    (let [kk (keyword (str (name k) (if (= 1 i) "" i)))]
-      (if (@a kk)
-        (recur (inc i))
-        (swap! a assoc kk v)))))
-
 (defn get-children [children]
   (if (and (= 1 (count children))
            (not (vector? (first children))))
@@ -152,7 +142,9 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
 (defn create-ui
   "Instantiates a ui from clojure data."
   ([v] (create-ui (create-scope) v))
-  ([scope [clazz tag props & children :as node]]
+  ([scope props]
+     (create-ui scope (atom {}) props))
+  ([scope rscope [clazz tag props & children :as node]]
      (let [view (if (keyword? clazz) ($ (objc-class (symbol (name clazz))) :new)
                     (do ($ clazz :retain) clazz))
            views (if-let [views (:views @scope)]
@@ -162,33 +154,33 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                       views))]
        ($ views :setValue view :forKey (name tag))
        (swap! scope assoc tag view)
+       (swap! rscope assoc view tag)
        (swap! (:retains @scope) conj view)
 
         (doseq [p (if (map? props) props (partition 2 props))]
           (set-property view p))
 
         (doseq [c (get-children children)]
-          (let [s (create-ui scope c)]
+          (let [s (create-ui scope rscope c)]
             ($ s :setTranslatesAutoresizingMaskIntoConstraints false)
             ($ view :addSubview s)))
 
         (let [allc (map parse-constraint (collect-constraints node))]
           (when-not (empty? allc)
-            (let [rscope (map-invert @scope)]
-              (doseq [c allc]
-                (if (string? c)
-                  (let [l (autolayout view views c)]
-                    (when-let [cc ($ l :count)] ;; make it safe for the jvm
-                      (doseq [n (range cc)]
-                        (let [i ($ l :objectAtIndex n)
-                              item1 (rscope ($ i :firstItem))
-                              attr1 (rlayout-constraints ($ i :firstAttribute))]
-                          (assoc-noreplace scope (str (name item1) "-" (name attr1)) i)
-                          (when-let [sec ($ i :secondItem)]
-                            (let [item2 (rscope sec)
-                                  attr2 (rlayout-constraints ($ i :secondAttribute))]
-                              (assoc-noreplace scope (str (name item2) "-" (name attr2)) i)))))))
-                  (assoc-noreplace scope (first c) (autolayout view views c)))))))
+            (doseq [c allc]
+              (if (string? c)
+                (let [l (autolayout view views c)]
+                  (when-let [cc ($ l :count)] ;; make it safe for the jvm
+                    (doseq [n (range cc)]
+                      (let [i ($ l :objectAtIndex n)
+                            item1 (@rscope ($ i :firstItem))
+                            attr1 (rlayout-constraints ($ i :firstAttribute))]
+                        (swap! scope assoc (keyword (str (name item1) "-" (name attr1))) i)
+                        (when-let [sec ($ i :secondItem)]
+                          (let [item2 (@rscope sec)
+                                attr2 (rlayout-constraints ($ i :secondAttribute))]
+                            (swap! scope assoc (keyword (str (name item2) "-" (name attr2))) i)))))))
+                (swap! scope assoc (keyword (first c)) (autolayout view views c))))))
 
         (doseq [[k v] (let [g (:gestures props)]
                         (if (map? g) g (partition 2 g)))]
