@@ -292,9 +292,8 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
   ([title view] (controller title view {}))
   ([title view init]
      (let [scope (create-scope init)
-           view (create-ui scope view)]
-       (doto ($ ($ ($ UIKitController) :alloc)
-                :initWith [view scope])
+           view (create-ui scope (if (fn? view) (view init) view))]
+       (doto ($ ($ ($ UIKitController) :alloc) :initWith [view scope])
          ($ :setTitle title)
          ($ :setView view)
          ($ :autorelease)))))
@@ -302,7 +301,8 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
 (defn nav-push
   "Pushes a controller into the top navigation controller"
   ([controller] (nav-push controller false))
-  ([controller animated] ($ @current-top-controller :pushViewController controller :animated animated)))
+  ([controller animated] ($ @current-top-controller :pushViewController controller
+                            :animated animated)))
 
 (defn nav-pop
   "Pops a controller from the current navigation controller"
@@ -333,22 +333,3 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
 (defn button
   "Creates a UIButton with a type"
   [type] ($ ($ UIButton) :buttonWithType type))
-
-(defmacro ui!
-  "Mutates ui
-
-  (ui! scope
-    {:field:setMethod val1
-     :other:setSomethingElse val2})"
-  [scope pairs]
-  (let [code
-        (for [[k v] pairs]
-          (let [[_ field method] (re-matches #"(\w*):(.*)" (name k))]
-            (when (and field method)
-              (let [kfield (keyword field)
-                    view `(~scope ~kfield)
-                    kmethod (keyword method)]
-                (if (= :nop v)
-                  `((sel ~method) ~view)
-                  `(set-property ~view [~kmethod ~v]))))))]
-    `(clojure.lang.RT/dispatchInMainSync (fn [] ~@code))))
