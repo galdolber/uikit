@@ -1,5 +1,7 @@
 (ns uikit.core)
 
+(def current-top-controller (atom nil))
+
 (defn nsdictionary [map]
   (when map
     (let [d ($ ($ NSMutableDictionary) :new)]
@@ -37,6 +39,26 @@
         :postNotificationName (name n)
         :object target
         :userInfo (nsdictionary info))))
+
+(defn nav-push
+  "Pushes a controller into the top navigation controller"
+  ([controller] (nav-push controller false))
+  ([controller animated] ($ @current-top-controller :pushViewController controller
+                            :animated animated)))
+
+(defn nav-pop
+  "Pops a controller from the current navigation controller"
+  ([] (nav-pop true))
+  ([animated]
+     ($ @current-top-controller :popViewControllerAnimated animated)))
+
+(defn nav-top-controller
+  "Gets the top controller from the current navigation controller"
+  ([] (nav-top-controller @current-top-controller))
+  ([nav] ($ nav :visibleViewController)))
+
+(defn current-scope []
+  ($ (nav-top-controller) :scope))
 
 (def constraint-regex #"C:(\w*)\.(\w*)(=|<=|>=)(\w*)\.(\w*) ?(-?\w*\.?\w*) ?(-?\w*\.?\w*)")
 
@@ -179,7 +201,8 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                         (when-let [sec ($ i :secondItem)]
                           (let [item2 (@rscope sec)
                                 attr2 (rlayout-constraints ($ i :secondAttribute))]
-                            (swap! scope assoc (keyword (str (name item2) "-" (name attr2))) i)))))))
+                            (swap! scope assoc (keyword (str (name item2) "-"
+                                                             (name attr2))) i)))))))
                 (swap! scope assoc (keyword (first c)) (autolayout view views c))))))
 
         (doseq [[k v] (let [g (:gestures props)]
@@ -217,8 +240,6 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
   (-> ($ UIApplication)
       ($ :sharedApplication)
       ($ :keyWindow)))
-
-(def current-top-controller (atom nil))
 
 (defn top-controller
   "Gets the top controller"
@@ -297,23 +318,6 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
          ($ :setTitle title)
          ($ :setView view)
          ($ :autorelease)))))
-
-(defn nav-push
-  "Pushes a controller into the top navigation controller"
-  ([controller] (nav-push controller false))
-  ([controller animated] ($ @current-top-controller :pushViewController controller
-                            :animated animated)))
-
-(defn nav-pop
-  "Pops a controller from the current navigation controller"
-  ([] (nav-pop true))
-  ([animated]
-     ($ @current-top-controller :popViewControllerAnimated animated)))
-
-(defn nav-top-controller
-  "Gets the top controller from the current navigation controller"
-  ([] (nav-top-controller @current-top-controller))
-  ([nav] ($ nav :visibleViewController)))
 
 (defn alert!
   "Creates and shows a simple UIAlertView"
