@@ -164,9 +164,7 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
 (defn create-ui
   "Instantiates a ui from clojure data."
   ([v] (create-ui (create-scope) v))
-  ([scope props]
-     (create-ui scope (atom {}) props))
-  ([scope rscope [clazz tag props & children :as node]]
+  ([scope [clazz tag props & children :as node]]
      (let [view (if (keyword? clazz) ($ (objc-class (symbol (name clazz))) :new)
                     (do ($ clazz :retain) clazz))
            views (if-let [views (:views @scope)]
@@ -176,14 +174,14 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                       views))]
        ($ views :setValue view :forKey (name tag))
        (swap! scope assoc tag view)
-       (swap! rscope assoc view tag)
+       (objc-set! view :tag tag)
        (swap! (:retains @scope) conj view)
 
         (doseq [p (if (map? props) props (partition 2 props))]
           (set-property view p))
 
         (doseq [c (get-children children)]
-          (let [s (create-ui scope rscope c)]
+          (let [s (create-ui scope c)]
             ($ s :setTranslatesAutoresizingMaskIntoConstraints false)
             ($ view :addSubview s)))
 
@@ -195,14 +193,16 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                   (when-let [cc ($ l :count)] ;; make it safe for the jvm
                     (doseq [n (range cc)]
                       (let [i ($ l :objectAtIndex n)
-                            item1 (@rscope ($ i :firstItem))
+                            item1 (objc-get ($ i :firstItem) :tag)
                             attr1 (rlayout-constraints ($ i :firstAttribute))]
-                        (swap! scope assoc (keyword (str (name item1) "-" (name attr1))) i)
+                        (when (and item1 attr1)
+                          (swap! scope assoc (keyword (str (name item1) "-" (name attr1))) i))
                         (when-let [sec ($ i :secondItem)]
-                          (let [item2 (@rscope sec)
+                          (let [item2 (objc-get sec :tag)
                                 attr2 (rlayout-constraints ($ i :secondAttribute))]
-                            (swap! scope assoc (keyword (str (name item2) "-"
-                                                             (name attr2))) i)))))))
+                            (when (and item2 attr2)
+                              (swap! scope assoc (keyword (str (name item2) "-"
+                                                               (name attr2))) i))))))))
                 (swap! scope assoc (keyword (first c)) (autolayout view views c))))))
 
         (doseq [[k v] (let [g (:gestures props)]
