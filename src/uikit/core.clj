@@ -9,7 +9,7 @@
         ($ d :setObject v :forKey (name k)))
       ($ d :autorelease))))
 
-(def default-center ($ ($ NSNotificationCenter) :defaultCenter))
+(def default-center (delay ($ ($ NSNotificationCenter) :defaultCenter)))
 
 (defn add-observer
   "Adds an observer for a notification.
@@ -17,7 +17,7 @@
   The handler is retained. "
   ([target handler n] (add-observer target handler "invokeWithId:" n))
   ([target handler selector n]
-     ($ default-center
+     ($ @default-center
         :addObserver ($ handler :retain)
         :selector (sel selector)
         :name (name n)
@@ -28,14 +28,14 @@
 
   Releases the handler"
   [handler]
-  ($ default-center :removeObserver handler)
+  ($ @default-center :removeObserver handler)
   ($ handler :autorelease))
 
 (defn post-notification
   "Post a notification to an object"
   ([target n] (post-notification target n nil))
   ([target n info]
-     ($ default-center
+     ($ @default-center
         :postNotificationName (name n)
         :object target
         :userInfo (nsdictionary info))))
@@ -66,31 +66,31 @@
   (reduce (fn [m [k v]] (assoc m v k)) {} m))
 
 (def layout-constraints
-  {:<=      -1
-   :=        0
-   :>=       1
-   :left     1
-   :right    2
-   :top      3
-   :bottom   4
-   :leading  5
-   :trailing 6
-   :width    7
-   :height   8
-   :centerx  9
-   :centery  10
-   :baseline 11
-   :nil 0})
+  (delay {:<=      -1
+          :=        0
+          :>=       1
+          :left     1
+          :right    2
+          :top      3
+          :bottom   4
+          :leading  5
+          :trailing 6
+          :width    7
+          :height   8
+          :centerx  9
+          :centery  10
+          :baseline 11
+          :nil 0}))
 
-(def rlayout-constraints (map-invert layout-constraints))
+(def rlayout-constraints (delay (map-invert @layout-constraints)))
 
 (defn not-found [c]
   (throw (Exception. (str "Constraint not found " c))))
 
 (defn resolve-constraint [c]
   (if (number? c)
-    (if (some #{c} (vals layout-constraints)) c (not-found c))
-    (if-let [c (layout-constraints (keyword (name c)))] c (not-found c))))
+    (if (some #{c} (vals @layout-constraints)) c (not-found c))
+    (if-let [c (@layout-constraints (keyword (name c)))] c (not-found c))))
 
 (defn parse-constraint [^String c]
   (if-not (re-find #"^C:" c)
@@ -194,12 +194,12 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
                     (doseq [n (range cc)]
                       (let [i ($ l :objectAtIndex n)
                             item1 (objc-get ($ i :firstItem) :tag)
-                            attr1 (rlayout-constraints ($ i :firstAttribute))]
+                            attr1 (@rlayout-constraints ($ i :firstAttribute))]
                         (when (and item1 attr1)
                           (swap! scope assoc (keyword (str (name item1) "-" (name attr1))) i))
                         (when-let [sec ($ i :secondItem)]
                           (let [item2 (objc-get sec :tag)
-                                attr2 (rlayout-constraints ($ i :secondAttribute))]
+                                attr2 (@rlayout-constraints ($ i :secondAttribute))]
                             (when (and item2 attr2)
                               (swap! scope assoc (keyword (str (name item2) "-"
                                                                (name attr2))) i))))))))
@@ -278,7 +278,7 @@ Use format: C:{name}.[left|right|top|bottom|leading|trailing|width|height|center
   ([^:id self :scope]
      @(objc-get self :scope))
   ([self :shouldAutorotate]
-     (:shouldAutorotate (objc-get self :scope)))
+     (not (:shouldNotAutorotate @(:state (objc-get self :scope)))))
   ([self :viewDidLoad]
      (post-notification ($ self :view) :viewDidLoad)
      ($$ self :viewDidLoad))
